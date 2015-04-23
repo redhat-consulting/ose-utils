@@ -1,0 +1,75 @@
+#!/usr/bin/env oo-ruby
+
+#   Copyright 2012 Red Hat Inc.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+#
+# oo-list-nodes - Utility to list nodes containing gears of a specified application.
+#
+# Usage: See usage function below
+#
+require 'getoptlong'
+require 'pp'
+
+$:.unshift('/usr/local/lib')
+
+opts = GetoptLong.new(
+    ["--application",    "-a", GetoptLong::REQUIRED_ARGUMENT],
+)
+def usage
+        abort "Usage:
+oo-list-nodes {-a | --application application}"
+
+end
+
+args = {}
+begin
+  opts.each{ |k,v| args[k]=v }
+rescue GetoptLong::Error => e
+  usage
+end
+
+usage unless args.length > 0
+
+name = args["--application"]
+
+require "#{ENV['OPENSHIFT_BROKER_DIR'] || '/var/www/openshift/broker'}/config/environment"
+
+Rails.configuration.analytics[:enabled] = false
+Mongoid.raise_not_found_error = false
+
+def nodes_associated(app_name)
+	filter = { :domain_namespace => app_name }
+	node_list = []
+	Application.where( filter ).each do |app|
+		carts = {}
+		app.component_instances.each do |ci|
+			carts[ci.group_instance_id] = ci.cartridge_name
+		end
+		app.group_instances.each do |gi|
+			gi.gears.each do |g|
+				node_list << g.server_identity
+			end
+		end
+	end
+	if !node_list.empty?
+		node_list = node_list.uniq
+		puts "Nodes hosting \"#{app_name}\":" 
+        	puts node_list
+	else
+		puts "Error: No Nodes found for \"#{app_name}\""
+	end
+end
+
+nodes_associated(name)

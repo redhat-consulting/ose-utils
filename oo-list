@@ -266,11 +266,16 @@ begin
     if headers
       h=["application","login","cartridge","gear_profile","district","node","gear_id"]
       if args["--extended"]
-         h = ["application","owner","cartridge","gear_size","owner","district","node","gear_id", "status"]
+         h = ["application","owner","cartridge","cart-version","gear_size","owner","district","node","gear_id", "status"]
       end
 
       output.puts h.join(sep1)
     end
+      carttype_versions={}
+      CartridgeType.all.each do | cart |
+                carttype_versions[cart.name]=cart.cartridge_version 
+      end
+
       Application.where( filter1 ).sort{|a,b| a['canonical_name']+a['domain_namespace']<=>b['canonical_name']+b['domain_namespace']}.each do |app|
         carts = {}
         app.component_instances.each do |ci|
@@ -283,10 +288,12 @@ begin
             o << "#{app.canonical_name}-#{app.domain_namespace}"
             o << users[app.owner_id]
             o << carts[gi._id]
+            o << carttype_versions[carts[gi._id]]
             o << servers[g.server_identity]["gear_size"]
             o << servers[g.server_identity]["district"]
             o << g.server_identity
             o << g._id
+	    
 	    if args["--extended"]
           	 Gear.get_gear_states(gi.gears).each do |l|
             		if l.include? "#{g._id}"
@@ -297,7 +304,6 @@ begin
 	    end
 	
        end
-	
 		
             output.puts o.join(sep1)
           end
