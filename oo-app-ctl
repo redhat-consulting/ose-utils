@@ -80,7 +80,7 @@ def gear_action(app_name,action)
 			gi.gears.each do |g|
         #ssh to node
         begin
-          ssh = Net::SSH.start('192.168.122.28', 'root', :keys => ['/etc/openshift/rsync_id_rsa']) do |ssh|
+          ssh = Net::SSH.start(g.server_identity, 'root', :keys => ['/etc/openshift/rsync_id_rsa']) do |ssh|
             res = ssh.exec!("oo-admin-ctl-gears #{action}gear #{g._id}" )
             puts res
           end
