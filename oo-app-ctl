@@ -1,0 +1,102 @@
+#!/usr/bin/env oo-ruby
+
+#   Copyright 2012 Red Hat Inc.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+#
+# oo-list-nodes - Utility to list nodes containing gears of a specified application.
+#
+# Usage: See usage function below
+#
+require 'getoptlong'
+require 'pp'
+require 'net/ssh'
+
+$:.unshift('/usr/local/lib')
+
+opts = GetoptLong.new(
+    ["--application",    "-a", GetoptLong::REQUIRED_ARGUMENT],
+    ["--start",          "-s", GetoptLong::NO_ARGUMENT],
+    ["--restart",        "-r", GetoptLong::NO_ARGUMENT],
+    ["--stop",           "-x", GetoptLong::NO_ARGUMENT],
+
+)
+def usage
+        abort "Usage:
+oo-app-ctl {-a | --application application} --action
+Actions:
+start - Start an applications gears
+stop - Stop all gears running target application
+restart - Restart all gears running target application"
+
+end
+
+args = {}
+begin
+  opts.each{ |k,v| args[k]=v }
+rescue GetoptLong::Error => e
+  usage
+end
+
+usage unless args.length > 0
+
+name = args["--application"]
+action=''
+if args['--start']
+  action = 'start'
+elsif args['--stop']
+  action = 'stop'
+elsif args['--restart']
+  action = 'restart'
+else
+  usage
+end
+
+require "#{ENV['OPENSHIFT_BROKER_DIR'] || '/var/www/openshift/broker'}/config/environment"
+
+Rails.configuration.analytics[:enabled] = false
+Mongoid.raise_not_found_error = false
+methods=""
+def gear_action(app_name,action)
+	filter = { :name => app_name }
+	gear_list = []
+	Application.where( filter ).each do |app|
+		carts = {}
+		app.component_instances.each do |ci|
+			carts[ci.group_instance_id] = ci.cartridge_name
+		end
+		app.group_instances.each do |gi|
+			gi.gears.each do |g|
+        #ssh to node
+        begin
+          ssh = Net::SSH.start('192.168.122.28', 'root', :keys => ['/etc/openshift/rsync_id_rsa']) do |ssh|
+            res = ssh.exec!("oo-admin-ctl-gears #{action}gear #{g._id}" )
+            puts res
+          end
+        rescue Exception => e
+          puts "Unable to connect to #{g.server_identity} using root. Error:#{e.message}"
+        else
+          gear_list << g
+        end
+
+
+		  end
+	 end
+ end
+	if gear_list.empty?
+		puts "Error: No gears found for \"#{app_name}\""
+	end
+end
+
+gear_action(name,action)
