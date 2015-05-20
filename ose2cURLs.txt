@@ -1,0 +1,22 @@
+
+
+#Register a developer domain for $username
+
+	curl -H "Authorization: Bearer $TOKEN" -k -X POST https://$brokerHost/broker/rest/domains/ --data-urlencode name=$username --data-urlencode allowed_gear_sizes="$gearProfile"
+
+#Register a app domain owned by $appdomain
+
+	curl -k -H "Authorization: Bearer $TOKEN" -X POST https://$brokerHost/broker/rest/domains/ --data-urlencode name=$appDomain
+
+#Granting view access to members
+
+	curl -k -H "Authorization: Bearer $TOKEN" -X PATCH https://$brokerHost/broker/rest/domains/$appDomain/members --data-urlencode role=view --data-urlencode login=$dev
+
+#Granting admin access to members
+
+	curl -k -H "Authorization: Bearer $TOKEN" -X PATCH https://$brokerHost/broker/rest/domains/$appDomain/members --data-urlencode role=admin --data-urlencode login=$admin
+
+#Deleting an domain (NOTE** will forcibly delete all apps in that domain)
+
+	curl -k -H "Authorization: Bearer $TOKEN" -X DELETE https://$brokerHost/broker/rest/domains/$appDomain --data-urlencode force=true
+
