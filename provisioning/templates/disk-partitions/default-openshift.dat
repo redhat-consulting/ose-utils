@@ -1,7 +1,7 @@
 /dev/vdb # disk
 p # primary
 2 # partition number
-  # start sector (accept default)
-+2G # end sector (accept default)
+  # start sector (empty means accept default)
++2G # end sector 
 8e # partition type
 
