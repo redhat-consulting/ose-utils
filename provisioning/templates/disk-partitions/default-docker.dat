@@ -1,0 +1,7 @@
+/dev/vdb # disk
+p # primary
+1 # partition number
+  # start sector (accept default)
++20G # end sector (accept default)
+8e # partition type
+

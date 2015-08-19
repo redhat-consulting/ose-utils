@@ -1,3 +1,5 @@
 SSH_CMD='ssh -o ServerAliveCountMax=100 -o ConnectionAttempts=180 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=ERROR'
 SCP_CMD='scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=ERROR'
 
+DEFAULT_DOCKER_PART_FILE='templates/disk-partitions/default-docker.dat'
+DEFAULT_OPENSHIFT_PART_FILE='templates/disk-partitions/default-openshift.dat'

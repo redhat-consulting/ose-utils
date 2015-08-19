@@ -44,3 +44,88 @@ get_private_ips() {
 get_public_ips() {
   echo "$1" | sed 's/[0-9]*.[0-9]*.[0-9]*.[0-9]*|//g'
 }
+
+# Usage: partition_disk <path_to_partition_conf_file>
+function partition_disk() {
+  input_file=${1}
+
+  IFS=$'\r\n'
+  FDISKVALUES=($(cat ${input_file}))
+  unset IFS
+
+  (echo n; \
+   echo ${FDISKVALUES[1]%% *}; \
+   echo ${FDISKVALUES[2]%% *}; \
+   echo ${FDISKVALUES[3]%% *}; \
+   echo ${FDISKVALUES[4]%% *}; \
+   echo t; \
+   echo ${FDISKVALUES[2]%% *}; \
+   echo ${FDISKVALUES[5]%% *}; \
+   echo w
+  ) | fdisk ${FDISKVALUES[0]%% *} 
+  rc=$?
+
+  partprobe
+
+  return ${rc}
+}
+
+setup_docker_storage() {
+  docker_part_file=${1:-DEFAULT_DOCKER_PART_FILE}
+
+  # Install and configure docker
+  yum -y install docker &>/dev/null || error_out "Failed to install package docker"
+  sed -i "s/OPTIONS='--selinux-enabled'/OPTIONS='--selinux-enabled --insecure-registry 172.30.0.0\/16'/" /etc/sysconfig/docker
+
+  vgdisplay vg-docker &>/dev/null
+  vg_rc=$?
+
+  if [ ${vg_rc} -eq 0 ]; then
+    echo "docker storage already configured!"
+    return 0
+  fi
+
+  partition_disk ${docker_part_file}
+
+  pvcreate /dev/vdb1
+  vgcreate vg-docker /dev/vdb1
+
+  cat << EOF > /etc/sysconfig/docker-storage-setup
+VG=vg-docker
+SETUP_LVM_THIN_POOL=yes
+EOF
+
+  # Let docker setup the storage based on the above config file
+  docker-storage-setup
+
+  return 0
+}
+
+setup_openshift_storage() {
+  openshift_part_file=${1:-DEFAULT_OPENSHIFT_PART_FILE}
+
+  vgdisplay vg-openshift &>/dev/null
+  vg_rc=$?
+
+  if [ ${vg_rc} -eq 0 ]; then
+    echo "openshift storage already configured!"
+    return 0
+  fi
+
+  partition_disk ${openshift_part_file}
+
+  # Create LVM and set up /var/lib/openshift
+  pvcreate /dev/vdb2
+  vgcreate vg-openshift /dev/vdb2
+  lvcreate -l 100%FREE -n lv-ose vg-openshift
+
+  mkfs.xfs -q -f /dev/vg-openshift/lv-ose
+
+  mkdir -p /var/lib/openshift
+  echo "/dev/vg-openshift/lv-ose        /var/lib/openshift              xfs defaults 0 0" >> /etc/fstab
+
+  mount -a
+
+  return 0
+}
+
