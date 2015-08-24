@@ -71,8 +71,7 @@ function check_prereqs() {
 function install_prereqs() {
 	
 	#EPEL
-	wget -O ${CICD_SETUP_DIR}/epel-release-7-5.noarch.rpm http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
-	rpm -Uvh ${CICD_SETUP_DIR}/epel-release-7-5.noarch.rpm
+	yum -y install http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
 	
 	yum install -y wget git vim jq &>/dev/null || error_out "Failed to install prerequisite software"
 }
